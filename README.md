@@ -12,3 +12,25 @@
 * 反编译工具 [Other Blog](https://www.cnblogs.com/ldc218/p/8945892.html)
     1. [ILSpy](https://github.com/icsharpcode/ILSpy)开源免费
     2. [dnSpy](https://github.com/0xd4d/dnSpy)开源免费
+
+---
+
+Jira修改baseURL：
+
+查找属性值
+
+```sql
+select propertyvalue from propertyentry PE
+join propertystring PS on PE.id=PS.id
+where PE.property_key = 'jira.baseurl'
+```
+
+修改
+
+```sql
+UPDATE ps SET PS.propertyvalue='http://{domain}:8080' from propertyentry PE
+join propertystring PS on PE.id=PS.id
+where PE.property_key = 'jira.baseurl'
+```
+
+---
