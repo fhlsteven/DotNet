@@ -199,3 +199,15 @@ Git鼓励大量使用分支：</br>
 删除分支：`git branch -d <name>` </br>
 
 #### 解决冲突
+
+合并分支的时候
+
+* 创建新分支`git checkout -b feature1`,修改文件提交
+* 切换到`master`分支`git checkout master`, 修改文件提交
+* `master`分支和`feature1`分支各自都分别有新的提交
+![master_feature1](img/git/master_feature1.png)
+* 合并feature1分支`git merge feature1`
+  >Auto-merging readme.txt </br>
+CONFLICT (content): Merge conflict in readme.txt</br>
+Automatic merge failed; fix conflicts and then commit the result.
+* `readme.txt`文件存在冲突，必须手动解决冲突后再提交。`git status`可以查看冲突的文件：
