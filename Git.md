@@ -211,3 +211,12 @@ Git鼓励大量使用分支：</br>
 CONFLICT (content): Merge conflict in readme.txt</br>
 Automatic merge failed; fix conflicts and then commit the result.
 * `readme.txt`文件存在冲突，必须手动解决冲突后再提交。`git status`可以查看冲突的文件：
+  >  On branch master</br>
+ You have unmerged paths.</br>
+  (fix conflicts and run "git commit")</br>
+</br>
+ Unmerged paths:</br>
+   (use "git add <file>..." to mark resolution)</br>
+</br>
+       both modified:      readme.txt</br>
+no changes added to commit (use "git add" and/or "git commit -a")
