@@ -448,6 +448,188 @@ class DoubanMovieTop250Spider(Spider):
             yield Request(next_url, headers=self.headers)
 ```
 
+## 三 [调试(Debugging)Spiders](https://woodenrobot.me/2017/02/12/Scrapy%E7%88%AC%E8%99%AB%E6%A1%86%E6%9E%B6%E6%95%99%E7%A8%8B%EF%BC%88%E4%B8%89%EF%BC%89-%E8%B0%83%E8%AF%95-Debugging-Spiders/)
+
+### 方法1
+
+通过`scrapy.shell.inspect_response`函数来实现
+
+```python
+from scrapy import Request
+from scrapy.spiders import Spider
+from scrapyspider.items import DBMovieItem
+
+class DouBanSpider(Spider):
+    name = 'douban_movie_top250'
+    headers ={
+        'User-Agent':'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36'
+    }
+
+    def start_requests(self):
+        url ='https://movie.douban.com/top250'
+        yield Request(url, headers=self.headers)
+
+    def parse(self,response):
+        item = DBMovieItem()
+        movies = response.xpath('//ol[@class="grid_view"]/li')
+        for movie in movies:
+            item['ranking'] = movie.xpath('.//div[@class="pic"]/em/text()').extract()[0]
+            item['movie_name']=movie.xpath('.//div[@class="hd"]/a/span[1]/text()').extract()[0]
+            item['score']=movie.xpath('.//div[@class="star"]/span[@class="rating_num"]/text()').extract()[0]
+            item['score_num']=movie.xpath('.//div[@class="star"]/span/text()').re(r'(\d+)人评价')[0]
+            yield item
+
+        next_url = response.xpath('.//span[@class="next"]/a/@href').extract()
+        if next_url:
+            next_url = "https://movie.douban.com/top250"+next_url[0]
+            yield Request(next_url, headers=self.headers)
+```
+
+在下载完网页源码进行解析前可以插入上述两句代码，在命令行运行爬虫出现以下效果：
+![inspect_reponse](img/python.scrapy/inspect_response.png)
+
+可以在命令行中使用`xpath`规则对`response`进行操作提取相应的信息：
+![inspect_reponse_xpath](img/python.scrapy/inspect_response_xpath.png)
+
+有时候下载下来的网页结构和浏览器中看到的不一样，可以用`view(response)`将爬虫下载到的网页源码在浏览器中打开:
+![inspect_reponse_local](img/python.scrapy/inspect_response_local.png)
+
+虽然scrapy自己提供了这个方式调试爬虫，但是这个方式有很大的局限性。
+
+### 方法2 用`pycharm`调试爬虫
+
+首先在`setting.py`同级目录下创建`run.py`文件。
+![scray_pycharm](img/python.scrapy/scrapy_pycharm.png)
+
+``` python
+    from scrapy import cmdline
+    name = 'douban_movie_top250'
+    cmd = 'scrapy crawl {0}'.format(name)
+    cmdline.execute(cmd.split())
+```
+
+其中`name`参数为`spider`的`name`。
+接着在`spider`文件中设置断点。
+![scray_pycharm_debug](img/python.scrapy/scrapy_pycharm_2.png)
+
+返回`run.py`文件中右键选择`Debug`。
+![scray_pycharm_debug_3](img/python.scrapy/scrapy_pycharm_3.png)
+
+最后程序就会在断点处暂停，可以查看相应的内容从而进行调试
+![scray_pycharm_debug_4](img/python.scrapy/scrapy_pycharm_4.png)
+
+我试了一下`VSCode`也可以用这样的方式调试：
+![scray_vscode](img/python.scrapy/scrapy_debug.png)
+
+### 3 [VSCode 调试](https://blog.csdn.net/qq_28469399/article/details/89338182)
+
+在项目中新建`python`文件，该文件位置与`settings.py`这堆文件平级就可以了，然后添加以下代码，按`F5`就可以和调试平常的`python`代码一样调试`scrapy`程序了
+
+```python
+from scrapy.cmdline import execute
+import os
+# 获取当前文件路径
+dirpath = os.path.dirname(os.path.abspath(__file__))
+#切换到scrapy项目路径下
+os.chdir(dirpath[:dirpath.rindex("\\")])
+# 启动爬虫,第三个参数为爬虫name
+execute(['scrapy','crawl','douban_movie_top250'])
+```
+
+## 四  [抓取AJAX异步加载网页](https://woodenrobot.me/2017/04/09/Scrapy%E7%88%AC%E8%99%AB%E6%A1%86%E6%9E%B6%E6%95%99%E7%A8%8B%EF%BC%88%E5%9B%9B%EF%BC%89-%E6%8A%93%E5%8F%96AJAX%E5%BC%82%E6%AD%A5%E5%8A%A0%E8%BD%BD%E7%BD%91%E9%A1%B5/)
+
+### 什么是AJAX
+
+>`AJAX`即“Asynchronous Javascript And XML”（异步JavaScript和XML），是指一种创建交互式网页应用的网页开发技术。  
+>AJAX = 异步 JavaScript和XML（标准通用标记语言的子集）。  
+>AJAX 是一种用于创建快速动态网页的技术.  
+>通过在后台与服务器进行少量数据交换，AJAX 可以使网页实现异步更新。这意味着可以在不重新加载整个网页的情况下，对网页的某部分进行更新。
+
+### 两个Chrome插件
+
+* Toggle JavaScript
+
+>这个插件可以快速直观地检测网页里哪些信息是通过AJAX异步加载而来的，具体怎么用，下面会详细讲解。
+</br>chrome商店下载地址：<https://chrome.google.com/webstore/detail/toggle-javascript/cidlcjdalomndpeagkjpnefhljffbnlo?utm_source=chrome-app-launcher-info-dialog>(Ps:打不的小伙伴自行百度搜索国内提供chrome插件下载的网站离线安装)
+
+* JSON-handle
+
+>这个插件可以帮我们格式化Json串,从而让我们以一个更友好的方式查看Json内的信息。
+chrome商店下载地址：<https://chrome.google.com/webstore/detail/json-handle/iahnhfdhidomcpggpaimmmahffihkfnj>(Ps:打不的小伙伴自行百度搜索国内提供chrome插件下载的网站离线安装)
+
+### 分析过程
+
+#### 分析页面是否采用AJAX
+
+拿豆瓣做例子,首先打[豆瓣电影分类排行榜-动作片](https://movie.douban.com/typerank?type_name=%E5%8A%A8%E4%BD%9C&type=5&interval_id=100:90&action=)栏目
+![douban_action_movie](img/python.scrapy/douban_action.png)
+通过右键查看网页源码来鉴别。比如说你右键查看源码ctrl+f搜索这个杀手不太冷这几个字，你会发现源码里没有。
+![douban_action_movie_source_code](img/python.scrapy/douban_action_srcode.png)
+
+使用`chrome`插件`Toggle JavaScript`精确地知道哪些信息是异步加载而来的。</br>AJAX = 异步 JavaScript和XML。当点击了插件就代表封禁了JavaScript,这个页面里的JavaScript代码无法执行，那么通过AJAX异步加载而来的信息当然就无法出现了
+![toggleJavascript](img/python.scrapy/toggleJavascript.png)
+
+#### 如何抓取AJAX异步加载页面
+
+对于这种网页一般会采用两种方法：
+
+1. 通过抓包找到AJAX异步加载的请求地址；
+2. 通过使用`PhantomJS`等无头浏览器执行JS代码后再对网页进行抓取。
+
+*通常情况下我会采用第一种方法，因为使用无头浏览器会大大降低抓取效率，而且第一种方法得到的数据格式往往以Json为主，非常干净。在这里我只讲解第一种方法，第二种方法作为爬虫的终极武器我会在后续的教程中进行讲解。*</br>
+回到需要抓取的页面，进入页面后我们按`F12`打开chrome浏览器的开发者工具选择`Network`，然后实现一次下拉更新。
+![jsondata](img/python.scrapy/network_data.png)
+
+你会在`Network`里发现一个`Response`为`Json格式`的请求，仔细看看Json里的内容你会明白这些都是网页上显示的电影信息。右键该请求地址选择`Open Link in New Tab`,如果你装了`JSON-handle`插件你会以下面这种更友好的方式查看这个`Json串`。
+![jsonData](img/python.scrapy/json_data.png)
+
+接着看一下该请求的`Header`信息。
+![request_heder](img/python.scrapy/request_heder.png)
+
+可以看出这是一个`get`请求，多看几个下拉请求的地址后你会发现地中的`start=xxx`在不断变化，每次增加20。所以我们只用更改这个参数就可以实现翻页不断获取新数据(Ps:修改其他的参数也会有不同的效果，这里就不一一细说了，留给大家慢慢地探索)。 spider代码如下：
+
+```python
+import re
+import json
+from scrapy import Request
+from scrapy.spiders import Spider
+from scrapyspider.items import DoubanMovieItem
+
+
+class DoubanAJAXSpider(Spider):
+    name = 'douban_ajax'
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36',
+    }
+
+    def start_requests(self):
+        url = 'https://movie.douban.com/j/chart/top_list?type=5&interval_id=100%3A90&action=&start=0&limit=20'
+        yield Request(url, headers=self.headers)
+
+    def parse(self, response):
+        datas = json.loads(response.body)
+        item = DoubanMovieItem()
+        if datas:
+            for data in datas:
+                item['ranking'] = data['rank']
+                item['movie_name'] = data['title']
+                item['score'] = data['score']
+                item['score_num'] = data['vote_count']
+                yield item
+
+            # 如果datas存在数据则对下一页进行采集
+            page_num = re.search(r'start=(\d+)', response.url).group(1)
+            page_num = 'start=' + str(int(page_num)+20)
+            next_url = re.sub(r'start=\d+', page_num, response.url)
+            yield Request(next_url, headers=self.headers)
+```
+
+在`Scrapy`工程文件的`spiders`里写好爬虫文件后在`settings.py`所在的目录下打开终端运行以下代码就能输出相应的电影数据。
+
+```bash
+scrapy crawl douban_ajax -o douban_actio_movie.csv
+```
+
 ## 相关文章
 
 [python爬虫框架——Scrapy架构原理介绍](
