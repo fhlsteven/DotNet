@@ -46,14 +46,14 @@
     select id from t where num=20
     ```
 
-5. `in`和`not in`也要慎用，否则会导致全表扫描，如： 
+5. `in`和`not in`也要慎用，否则会导致全表扫描，如：
 
     ```sql
     select id from t where num in(1,2,3)
     ```
 
-    对于连续的数值，能用`between`就不要用`in`： 
-    
+    对于连续的数值，能用`between`就不要用`in`：
+
     ```sql
     select id from t where num between 1 and 3
     ```
@@ -61,8 +61,9 @@
 6. 下面的查询也将导致全表扫描：
 
     ```sql
-    select id from t where name like '%abc%' 
+    select id from t where name like '%abc%'
     ```
+
     若要提高效率，可以考虑全文检索。
 
 7. 如果在`where`子句中使用参数，也会导致全表扫描。因为SQL只有在运行时才会解析局部变量，但优化程序不能将访问计划的选择推迟到运行时；它必须在编译时进行选择。然而，如果在编译时建立访问计划，变量的值还是未知的，因而无法作为索引选择的输入项。如下面语句将进行全表扫描：
@@ -77,28 +78,29 @@
     select id from t with(index(索引名)) where num=@num
     ```
 
-8. 应尽量避免在`where`子句中对字段进行表达式操作，这将导致引擎放弃使用索引而进行全表扫描。如： 
+8. 应尽量避免在`where`子句中对字段进行表达式操作，这将导致引擎放弃使用索引而进行全表扫描。如：
 
     ```sql
     select id from t where num/2=100
     ```
 
-    应改为: 
+    应改为:
+
     ```sql
     select id from t where num=100*2
     ```
 
-9. 应尽量避免在`where`子句中对字段进行函数操作，这将导致引擎放弃使用索引而进行全表扫描。如： 
+9. 应尽量避免在`where`子句中对字段进行函数操作，这将导致引擎放弃使用索引而进行全表扫描。如：
 
     ```sql
-    select id from t where substring(name,1,3)='abc'--name以abc开头的id 
-    select id from t where datediff(day,createdate,'2005-11-30')=0--‘2005-11-30’生成的id 
+    select id from t where substring(name,1,3)='abc'--name以abc开头的id
+    select id from t where datediff(day,createdate,'2005-11-30')=0--‘2005-11-30’生成的id
     ```
 
-    应改为: 
+    应改为:
 
     ```sql
-    select id from t where name like 'abc%' 
+    select id from t where name like 'abc%'
     select id from t where createdate>='2005-11-30' and createdate<'2005-12-1'
     ```
 
@@ -106,19 +108,19 @@
 
 11. 在使用索引字段作为条件时，如果该索引是复合索引，那么必须使用到该索引中的第一个字段作为条件时才能保证系统使用该索引，否则该索引将不会被使用，并且应尽可能的让字段顺序与索引顺序相一致。
 
-12. 不要写一些没有意义的查询，如需要生成一个空表结构： 
+12. 不要写一些没有意义的查询，如需要生成一个空表结构：
 
     ```sql
     select col1,col2 into #t from t where 1=0
     ```
 
-    这类代码不会返回任何结果集，但是会消耗系统资源的，应改成这样： 
-    
+    这类代码不会返回任何结果集，但是会消耗系统资源的，应改成这样：
+
     ```sql
     create table #t(...)
     ```
 
-13. 很多时候用`exists`代替`in`是一个好的选择： 
+13. 很多时候用`exists`代替`in`是一个好的选择：
 
     ```sql
     select num from a where num in(select num from b)
